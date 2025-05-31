@@ -1,15 +1,22 @@
-# Custom GitHub Actions Runner with Playwright & Robocorp
+# Custom GitHub Actions Runner (Playwright + Robocorp)
 
 <p align="center">
-  <img src="assets/logo.png" alt="Project Logo" width="500" />
+  <img src="assets/logo.png" alt="ARC Runner Scale Set" width="480" />
 </p>
 
-This repository provides a **custom Docker image** and **Kubernetes deployment** setup for running **GitHub Actions self‑hosted runners** that come pre‑installed with:
+This repository shows **two distinct moving parts** you need for self‑hosted GitHub Actions runners on Kubernetes:
 
-* **[Playwright](https://playwright.dev/)** – for browser automation
-* **[Robocorp Command Center CLI (rcc)](https://github.com/robocorp/rcc)** – Robocorp’s task‑automation toolchain
+| Layer                         | Helm Chart                                                                                                                                 | What it Does                                        | Customization                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **1. ARC *Controller***       | [`ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller`](https://github.com/actions/actions-runner-controller) | Installs the CRDs & controller that manage runners. | **None** – use upstream image.                                                                       |
+| **2. ARC *Runner Scale Set*** | [`ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set`](https://github.com/actions/actions-runner-controller-charts)     | Launches Pods that run `actions/runner`.            | **Yes** – we supply a *custom* Docker image containing Node.js 18, Playwright, and Robocorp **rcc**. |
 
-The image extends the official **[GitHub Actions Runner container](https://github.com/actions/runner)** and is designed to be deployed at scale via the **[Actions Runner Controller (ARC)](https://github.com/actions/actions-runner-controller)** Helm chart with its runner‑**Scale Set** feature.
+The custom image is built on top of [`ghcr.io/actions/actions-runner:latest`](https://github.com/actions/runner/pkgs/container/runner) and adds:
+
+* **[Playwright](https://playwright.dev/)** and its browser binaries.
+* **[Robocorp Command Center CLI (rcc)](https://github.com/robocorp/rcc)** · [Docs](https://robocorp.com/docs/developer-tools/rcc).
+
+---
 
 ---
 
