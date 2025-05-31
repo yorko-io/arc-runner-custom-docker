@@ -1,0 +1,41 @@
+# --------------------------------------------------------------------
+# GitHub configuration
+# --------------------------------------------------------------------
+githubConfigUrl: "https://github.com/your/repo"  # Replace with your GitHub URL
+
+githubConfigSecret:
+  github_token: ""  # Your GitHub PAT token
+
+# --------------------------------------------------------------------
+# Runner scale set configuration
+# --------------------------------------------------------------------
+runnerScaleSetName: "runner-scale-set"  # Name of the runner scale set
+
+# --------------------------------------------------------------------
+# Enable Docker-in-Docker mode
+# --------------------------------------------------------------------
+containerMode:
+  type: "dind"  # This enables the Docker-in-Docker sidecar container
+
+# --------------------------------------------------------------------
+# Runner Pod template configuration
+# --------------------------------------------------------------------
+template:
+  spec:
+    dnsPolicy: None
+    dnsConfig:
+      nameservers: ["8.8.8.8", "1.1.1.1"]
+    imagePullSecrets:        # omit this block if your image is public
+      - name: ghcr-login
+    containers:
+      - name: runner
+        image: ghcr.io/yorko-io/custom-arc-runner-playwright-deps:latest  # Replace with your image
+        imagePullPolicy: Always
+        command: ["/home/runner/run.sh"]
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
