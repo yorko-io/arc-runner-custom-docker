@@ -1,15 +1,14 @@
 # --------------------------------------------------------------------
 # GitHub configuration
 # --------------------------------------------------------------------
-githubConfigUrl: "https://github.com/your/repo"  # Replace with your GitHub URL
+githubConfigUrl: "https://github.com/joshyorko/fetch-repos-bot"  # Replace with your GitHub URL
 
-githubConfigSecret:
-  github_token: ""  # Your GitHub PAT token
+githubConfigSecret: pre-defined-secret
 
 # --------------------------------------------------------------------
 # Runner scale set configuration
 # --------------------------------------------------------------------
-runnerScaleSetName: "runner-scale-set"  # Name of the runner scale set
+runnerScaleSetName: "arc-runner-k8s"  # Name of the runner scale set
 
 # --------------------------------------------------------------------
 # Enable Docker-in-Docker mode
@@ -25,8 +24,8 @@ template:
     dnsPolicy: None
     dnsConfig:
       nameservers: ["8.8.8.8", "1.1.1.1"]
-    imagePullSecrets:        # omit this block if your image is public
-      - name: ghcr-login
+    #imagePullSecrets:        # omit this block if your image is public
+    #  - name: ghcr-login
     containers:
       - name: runner
         image: ghcr.io/yorko-io/custom-arc-runner-playwright-deps:latest  # Replace with your image
@@ -39,3 +38,7 @@ template:
           limits:
             cpu: "4"
             memory: "8Gi"
+
+maxRunners: 7
+
+minRunners: 1
