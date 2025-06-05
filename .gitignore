@@ -1,1 +1,4 @@
 /values_personal.yaml
+/ghcr-login-secret.yaml
+*.log
+logs/
