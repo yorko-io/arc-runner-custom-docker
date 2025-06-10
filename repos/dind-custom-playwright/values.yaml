@@ -33,12 +33,12 @@ template:
         command: ["/home/runner/run.sh"]
         resources:
           requests:
-            cpu: "1"
-            memory: "2Gi"
+            cpu: "2"
+            memory: "4Gi"
           limits:
-            cpu: "4"
-            memory: "8Gi"
+            cpu: "8"
+            memory: "16Gi"
 
-maxRunners: 7
+maxRunners: 3
 
-minRunners: 1
+minRunners: 0

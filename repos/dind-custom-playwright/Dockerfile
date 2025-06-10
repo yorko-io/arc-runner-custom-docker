@@ -25,5 +25,13 @@ RUN curl -o rcc https://cdn.sema4.ai/rcc/releases/latest/linux64/rcc \
  && chmod a+x rcc \
  && mv rcc /usr/local/bin/
 
+# Copy configuration and values for dind custom playwright
+COPY conda.yaml /workspace/conda.yaml
+COPY robot.yaml /workspace/robot.yaml
+COPY values-files/values-dind-custom-playwright.yaml /workspace/values-dind-custom-playwright.yaml
+
+WORKDIR /workspace
+RUN rcc holotree vars
+
 # Revert to the non-root runner user
 USER runner
