@@ -25,7 +25,8 @@ The custom image is built on top of [`ghcr.io/actions/actions-runner:latest`](ht
 * [Features](#features)
 * [Prerequisites](#prerequisites)
 * [Repository Structure](#repository-structure)
-* [Building the Docker Image](#building-the-docker-image)
+* [Installation and Deployment using `install.sh`](#installation-and-deployment-using-installsh)
+* [Building the Custom Runner Image](#building-the-custom-runner-image)
 * [Publishing to GitHub Container Registry (GHCR)](#publishing-to-github-container-registry-ghcr)
 * [Kubernetes Secret for GHCR](#kubernetes-secret-for-ghcr)
 * [Helm Deployment](#helm-deployment)
@@ -57,152 +58,122 @@ The custom image is built on top of [`ghcr.io/actions/actions-runner:latest`](ht
 ## Repository Structure
 
 ```text
-├── conda.yaml                # Conda environment spec
-├── robot.yaml                # Robot configuration
-├── create-ghcr-secret.sh     # Generates a Kubernetes secret for GHCR auth
-├── install.sh                # Installs ARC & the scale set via Helm
-├── full_values.yaml          # Complete values reference w/ examples & comments
-├── dind-custom-playwright    # Custom build for Dind + Playwright
-│   ├── Dockerfile            # Dockerfile for Dind + Playwright
-│   └── values.yaml           # Helm values for Dind + Playwright
-├── fetch-repos               # Custom build for fetching repos
-│   ├── Dockerfile            # Dockerfile for Fetch Repos
-│   └── values.yaml           # Helm values for Fetch Repos
-├── ror                       # Custom build for Room of Requirement
-│   ├── Dockerfile            # Dockerfile for ROR
-│   └── values.yaml           # Helm values for ROR
-└── README.md                 # Project documentation (this file)
+.
+├── README.md
+├── yorko-io-arc-runner-shared.2025-06-02.private-key.pem  # GitHub App private key (expected by install.sh)
+├── assets/
+│   └── logo.png
+├── docs/
+│   ├── full_values.yaml      # Comprehensive Helm values for runner scale set
+│   └── README.md             # Additional documentation
+├── repos/
+│   ├── builder-workflow/     # Config for a runner that can build other runner images
+│   │   ├── README.md
+│   │   └── values.yaml       # Helm values for the builder-workflow runner
+│   ├── dind-custom-playwright/ # Example: Custom runner with Docker-in-Docker & Playwright
+│   │   ├── Dockerfile
+│   │   └── values.yaml
+│   ├── fetch-repos/          # Example: Custom runner with Conda, Robocorp tools
+│   │   ├── conda.yaml
+│   │   ├── Dockerfile
+│   │   ├── robot.yaml
+│   │   └── values.yaml
+│   └── ror/                  # Example: Another custom runner configuration
+│       ├── Dockerfile
+│       └── values.yaml
+└── scripts/
+    ├── create-ghcr-secret.sh # Script to create Kubernetes secret for private GHCR images
+    └── install.sh            # Main installation and deployment script
 ```
 
-## Building the Docker Image
+## Installation and Deployment using `install.sh`
 
-1. **Clone** the repo:
+The primary method for deploying the ARC controller and runner scale sets is using the `scripts/install.sh` script.
 
-   ```bash
-   git clone https://github.com/your-org/arc-runner-custom-docker.git
-   cd arc-runner-custom-docker
-   ```
-2. **Build** locally:
+**Prerequisites:**
 
-   ```bash
-   docker build -t ghcr.io/<your-org>/custom-arc-runner:latest .
-   ```
-3. *(Optional)* **Test** the toolchains:
+*   **Docker:** For building images.
+*   **Helm 3:** For deploying charts.
+*   **`kubectl`:** Configured to your Kubernetes cluster.
+*   **`yq`:** For parsing YAML files. The script will attempt to install `yq` if it's not found in your PATH.
+*   **GitHub App Private Key:** A private key file named `yorko-io-arc-runner-shared.2025-06-02.private-key.pem` must be present in the root of this repository. This key is used by the `install.sh` script to create the `pre-defined-secret` for ARC's GitHub authentication.
 
-   ```bash
-   docker run --rm ghcr.io/<your-org>/custom-arc-runner:latest playwright --version
-   docker run --rm ghcr.io/<your-org>/custom-arc-runner:latest rcc --version
-   ```
+**Usage:**
 
-## Publishing to GitHub Container Registry (GHCR)
+```bash
+# Deploy without rebuilding images
+./scripts/install.sh <repo-name>
 
-1. **Login** to GHCR:
+# Deploy and rebuild the runner image
+./scripts/install.sh <repo-name> build
+```
 
-   ```bash
-   echo $GHCR_PAT | docker login ghcr.io -u <your‑username> --password-stdin
-   ```
-2. **Tag & push**:
+**Examples:**
 
-   ```bash
-   docker tag custom-arc-runner:latest ghcr.io/<your-org>/custom-arc-runner:latest
-   docker push ghcr.io/<your-org>/custom-arc-runner:latest
-   ```
+```bash
+# Install controller and runners for the "fetch-repos" config
+./scripts/install.sh fetch-repos
+
+# Install and rebuild the "dind-custom-playwright" runner image before deployment
+./scripts/install.sh dind-custom-playwright build
+```
+
+**What the script does:**
+
+1.  **Builds and Pushes Image (if `build` flag is present):** As described above.
+2.  **Installs ARC Controller:** Deploys or upgrades the `gha-runner-scale-set-controller` Helm chart from `oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller` into the `arc-systems` namespace (it will create the namespace if it doesn't exist).
+3.  **Sets up Runner Namespace and Secrets:**
+    *   Creates the `arc-runners` namespace if it doesn't exist.
+    *   Creates a Kubernetes secret named `pre-defined-secret` in the `arc-runners` namespace. This secret contains the GitHub App credentials (App ID, Installation ID from the script, and the private key from the `.pem` file). This secret is used by the deployed runner scale set to authenticate with GitHub.
+4.  **Deploys Runner Scale Set:** Deploys or upgrades the specified runner scale set using the `oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set` Helm chart. It applies configurations from the `repos/<repo-name>/values.yaml` file.
+
+## Building the Custom Runner Image
+
+Custom runner images allow you to pre-install necessary tools and dependencies for your GitHub Actions workflows.
+
+*   **Recommended (via `install.sh`):**
+    ```bash
+    # Build and push a custom image for a specific runner config
+    ./scripts/install.sh <repo-name> build
+    # Example: ./scripts/install.sh ror build
+    ```
+*   **Manual Build (using Docker CLI):**
+    ```bash
+    # Determine OWNER/REPO from values.yaml
+    OWNER_REPO=$(yq e '.githubConfigUrl' repos/<repo-name>/values.yaml | sed 's|https://github.com/||')
+    IMAGE_TAG="ghcr.io/${OWNER_REPO}-runner:latest"
+    docker build -t "$IMAGE_TAG" repos/<repo-name>/
+    docker push "$IMAGE_TAG"
+    ```
+
+## Publishing to GitHub Container Registry (GHCR)
+
+*   **Automated (via `install.sh`):** If you use the `build` flag with `scripts/install.sh <repo-name> build`, the script automatically pushes the built image to GHCR.
+*   **Manual Push:** If you build the image manually, you can push it using the Docker CLI:
+    ```bash
+    # Ensure you are logged into GHCR: docker login ghcr.io
+    # docker push YOUR_GHCR_IMAGE_TAG
+    ```
 
 ## Kubernetes Secret for GHCR
 
-Allow the cluster to pull your image:
+If your custom runner images are stored in a **private** GitHub Container Registry (GHCR) repository, your Kubernetes cluster will need credentials to pull these images.
 
-```bash
-chmod +x create-ghcr-secret.sh
-./create-ghcr-secret.sh   # generates ghcr-login-secret.yaml
-kubectl apply -f ghcr-login-secret.yaml -n <runner-namespace>
-```
+*   **Using `create-ghcr-secret.sh`:**
+    ```bash
+    # Run the helper script to generate a pull-secret YAML for GHCR
+    ./scripts/create-ghcr-secret.sh
+    ```
+    The script will prompt for your GitHub username, a PAT or token with read:packages scope, and the target namespace. It outputs a file `ghcr-login-secret.yaml` which you can apply with:
+    ```bash
+    kubectl apply -f ghcr-login-secret.yaml
+    ```
 
-## Helm Deployment
-
-`install.sh` wraps Helm to install **ARC** *and* your **Scale Set**:
-
-```bash
-chmod +x install.sh
-./install.sh
-```
-
-Under the hood it runs something equivalent to:
-
-```bash
-helm repo add arc https://actions-runner-controller.github.io/actions-runner-controller
-helm upgrade --install arc arc/actions-runner-controller \
-  --namespace arc-system --create-namespace
-
-helm upgrade --install custom-runners \
-  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \
-  --namespace arc-runners -f values.yaml
-```
-
----
-
-## Configuration Reference
-
-### values.yaml
-
-A **minimal** scale‑set configuration – edit the placeholders:
-
-```yaml
-githubConfigUrl: "https://github.com/<your-org>/<your-repo>"
-githubConfigSecret:
-  github_token: "<YOUR_GITHUB_PAT>"
-runnerScaleSetName: "custom-runner-scale-set"
-containerMode:
-  type: "dind"   # Docker‑in‑Docker
-
-template:
-  spec:
-    containers:
-      - name: runner
-        image: ghcr.io/<your-org>/custom-arc-runner:latest
-        imagePullPolicy: Always
-        command: ["/home/runner/run.sh"]
-        resources:
-          requests:
-            cpu: "1"
-            memory: "2Gi"
-          limits:
-            cpu: "4"
-            memory: "8Gi"
-```
-
-### full\_values.yaml
-
-Every configurable knob with comments:
-
-```bash
-cp full_values.yaml values.custom.yaml
-helm upgrade --install custom-runners \
-  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \
-  --namespace arc-runners -f values.custom.yaml
-```
-
----
-
-## File Descriptions
-
-| File                      | Purpose                                                       |
-| ------------------------- | ------------------------------------------------------------- |
-| **Dockerfile**            | Builds the custom runner image with Node.js, Playwright & rcc |
-| **create-ghcr-secret.sh** | Generates a pull‑secret YAML for GHCR                         |
-| **values.yaml**           | Quick‑start Helm values                                       |
-| **full\_values.yaml**     | Fully‑documented values reference                             |
-| **install.sh**            | Automates ARC + Scale Set install                             |
-
-## Contributing
-
-1. **Fork** the repo
-2. `git checkout -b feature/<your-feature>`
-3. Commit & push
-4. **Open a PR**
-
----
-
-## License
-
-MIT – see the [LICENSE](LICENSE) file for details.
+*   **Referencing the Secret:**
+    Uncomment and configure the `imagePullSecrets` block in your runner values file (`repos/<repo-name>/values.yaml`):
+    ```yaml
+    template:
+      spec:
+        imagePullSecrets:
+          - name: ghcr-login # Name of the secret created
+    ```
