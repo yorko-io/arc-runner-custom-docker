@@ -30,7 +30,10 @@ COPY conda.yaml /workspace/conda.yaml
 COPY robot.yaml /workspace/robot.yaml
 
 WORKDIR /workspace
+
+# Switch to runner user and set up holotree environment
+USER runner
+RUN rcc config identity -t
 RUN rcc holotree vars
 
-# Revert to the non-root runner user
-USER runner
+# The holotree environment is now created and available in the runner's home directory
