@@ -1,7 +1,7 @@
 # --------------------------------------------------------------------
 # GitHub configuration
 # --------------------------------------------------------------------
-githubConfigUrl: "https://github.com/joshyorko/arc-runner-custom-docker"  # Replace with your GitHub URL
+githubConfigUrl: "https://github.com/yorko-io/arc-runner-custom-docker"  # Replace with your GitHub URL
 
 githubConfigSecret: pre-defined-secret
 
