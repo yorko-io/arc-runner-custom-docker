@@ -1,0 +1,20 @@
+# --------------------------------------------------------------------
+# GitHub configuration
+# --------------------------------------------------------------------
+githubConfigUrl: "https://github.com/joshyorko/repo"  # Replace with your GitHub URL
+
+githubConfigSecret: pre-defined-secret
+
+# --------------------------------------------------------------------
+# Runner scale set configuration
+# --------------------------------------------------------------------
+runnerScaleSetName: "name-of-runner-k8s"  # Name of the runner scale set
+
+containerMode:
+  type: "kubernetes" 
+  kubernetesModeWorkVolumeClaim:
+    accessModes: ["ReadWriteOnce"]
+    storageClassName: "local-path"
+    resources:
+      requests:
+        storage: 1Gi
