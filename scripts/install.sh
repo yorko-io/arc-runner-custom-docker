@@ -9,46 +9,99 @@ DOCKERFILE="repos/$REPO_DIR/Dockerfile"
 
 YQ_COMMAND=""
 
+# Function to detect yq type and install if needed
+detect_yq_type() {
+    if command -v yq &> /dev/null; then
+        # Check if it's the Go-based yq (mikefarah/yq) by testing the 'e' command
+        if yq e --help &> /dev/null; then
+            echo "go"
+        # Check if it's the Python-based yq by testing jq-style syntax
+        elif echo '{"test": "value"}' | yq -r .test &> /dev/null 2>&1; then
+            echo "python"
+        else
+            echo "unknown"
+        fi
+    else
+        echo "none"
+    fi
+}
+
 # Function to find or install yq
 setup_yq() {
-    # 1. Check if yq is already in PATH
-    if command -v yq &> /dev/null; then
-        YQ_COMMAND="yq"
-        echo "yq found in PATH."
-        return 0
-    fi
+    YQ_TYPE=$(detect_yq_type)
+    
+    case $YQ_TYPE in
+        "go")
+            YQ_COMMAND="yq"
+            echo "Go-based yq (mikefarah/yq) found in PATH."
+            return 0
+            ;;
+        "python")
+            echo "Python-based yq found, but we need Go-based yq for this script."
+            echo "Installing Go-based yq alongside existing Python yq..."
+            install_go_yq
+            return $?
+            ;;
+        "unknown")
+            echo "Unknown yq version found. Installing Go-based yq..."
+            install_go_yq
+            return $?
+            ;;
+        "none")
+            echo "No yq found. Installing both Python-based and Go-based yq..."
+            install_python_yq
+            install_go_yq
+            return $?
+            ;;
+    esac
+}
 
-    # 2. If not in PATH, try apt-get install (requires sudo)
-    echo "yq not found in PATH, attempting to install via apt..."
+# Function to install Python-based yq
+install_python_yq() {
+    echo "Installing Python-based yq..."
+    if command -v pip3 &> /dev/null; then
+        pip3 install --user yq
+    elif command -v pip &> /dev/null; then
+        pip install --user yq
+    else
+        echo "Warning: pip not found, skipping Python yq installation"
+        return 1
+    fi
+}
+
+# Function to install Go-based yq (mikefarah/yq)
+install_go_yq() {
+    # 1. Try apt-get install first
+    echo "Attempting to install Go-based yq via apt..."
     if sudo apt-get update && sudo apt-get install -y yq; then
-        if command -v yq &> /dev/null; then # Re-check PATH
+        if yq e --help &> /dev/null; then
             YQ_COMMAND="yq"
-            echo "yq installed successfully via apt and found in PATH."
+            echo "Go-based yq installed successfully via apt."
             return 0
         else
-            echo "apt install reported success, but yq still not found in PATH. Proceeding to binary download."
+            echo "apt installed yq but it's not the Go-based version. Downloading mikefarah/yq binary..."
         fi
     else
-        echo "apt install failed. Proceeding to binary download."
+        echo "apt install failed. Downloading mikefarah/yq binary..."
     fi
 
-    # 3. If still not available, download official binary to /usr/local/bin
-    echo "Attempting to download yq official binary to /usr/local/bin/yq..."
-    if sudo curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "/usr/local/bin/yq"; then
-        sudo chmod +x "/usr/local/bin/yq"
+    # 2. Download official binary to /usr/local/bin
+    echo "Downloading Go-based yq (mikefarah/yq) binary to /usr/local/bin/yq-go..."
+    if sudo curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "/usr/local/bin/yq-go"; then
+        sudo chmod +x "/usr/local/bin/yq-go"
         # Verify the downloaded binary
-        if yq --version &> /dev/null; then # yq should be in PATH now
-            YQ_COMMAND="yq"
-            echo "yq downloaded and installed successfully to /usr/local/bin/yq."
+        if /usr/local/bin/yq-go --version &> /dev/null; then
+            YQ_COMMAND="/usr/local/bin/yq-go"
+            echo "Go-based yq downloaded and installed successfully to /usr/local/bin/yq-go."
             return 0
         else
-            echo "Downloaded yq binary to /usr/local/bin/yq but it's not executable or failed verification."
+            echo "Downloaded yq binary but it's not executable or failed verification."
         fi
     else
-        echo "Failed to download yq binary to /usr/local/bin/yq."
+        echo "Failed to download Go-based yq binary."
     fi
 
-    echo "Error: yq could not be installed or found. Please install yq manually."
+    echo "Error: Go-based yq could not be installed. Please install yq manually."
     exit 1
 }
 
