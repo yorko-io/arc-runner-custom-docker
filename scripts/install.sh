@@ -83,12 +83,20 @@ helm upgrade --install arc \
   --wait          # wait until the controller deployment is ready
 
 # Ensure runner namespace and GHCR secret
+
+# Find the latest .private-key.pem file in the current directory
+PEM_FILE=$(ls -1t *.private-key.pem 2>/dev/null | head -n 1)
+if [[ -z "$PEM_FILE" ]]; then
+  echo "Error: No .private-key.pem file found in the current directory."
+  exit 1
+fi
+
 kubectl create namespace arc-runners || true
 kubectl create secret generic pre-defined-secret \
   --namespace=arc-runners  \
   --from-literal=github_app_id=1354710 \
   --from-literal=github_app_installation_id=69321446 \
-  --from-literal=github_app_private_key="$(cat yorko-io-arc-runner-shared.2025-06-02.private-key.pem)" || true
+  --from-literal=github_app_private_key="$(cat "$PEM_FILE")" || true
 
 # Install runner scale set for the specified repo
 RANGE_NAME=$(${YQ_COMMAND} e '.runnerScaleSetName' "$VALUES_FILE")
