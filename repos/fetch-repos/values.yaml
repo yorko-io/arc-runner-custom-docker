@@ -10,15 +10,6 @@ githubConfigSecret: pre-defined-secret
 # --------------------------------------------------------------------
 runnerScaleSetName: "fetch-repos-bot-runner-k8s"  # Name of the runner scale set
 
-containerMode:
-  type: "kubernetes" 
-  kubernetesModeWorkVolumeClaim:
-    accessModes: ["ReadWriteOnce"]
-    # For local testing, use https://github.com/openebs/dynamic-localpv-provisioner/blob/develop/docs/quickstart.md to provide dynamic provision volume with storageClassName: openebs-hostpath
-    storageClassName: "local-path"
-    resources:
-      requests:
-        storage: 1Gi
 
 # --------------------------------------------------------------------
 # Runner Pod template configuration
