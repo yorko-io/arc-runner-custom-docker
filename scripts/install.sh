@@ -23,7 +23,7 @@ select_values_file() {
     fi
     
     if [ ${#values_files[@]} -eq 0 ]; then
-        echo "Error: No values*.yaml files found in repos/$repo_dir"
+        echo "Error: No values*.yaml files found in repos/$repo_dir" >&2
         exit 1
     elif [ ${#values_files[@]} -eq 1 ]; then
         # Only one file found, use it automatically
@@ -32,35 +32,35 @@ select_values_file() {
     fi
     
     # Multiple files found, let user choose
-    echo "Multiple values files found in repos/$repo_dir:"
+    echo "Multiple values files found in repos/$repo_dir:" >&2
     
     # Try to use fzf for fuzzy finding
     if command -v fzf &> /dev/null; then
-        echo "Use arrow keys and type to filter, press Enter to select:"
+        echo "Use arrow keys and type to filter, press Enter to select:" >&2
         local selected_file
         selected_file=$(printf '%s\n' "${values_files[@]}" | fzf --prompt="Select values file: " --height=10 --reverse)
         if [ -n "$selected_file" ]; then
             echo "repos/$repo_dir/$selected_file"
             return 0
         else
-            echo "No file selected. Exiting."
+            echo "No file selected. Exiting." >&2
             exit 1
         fi
     else
         # Fallback to numbered menu
-        echo "fzf not found, using numbered selection:"
+        echo "fzf not found, using numbered selection:" >&2
         for i in "${!values_files[@]}"; do
-            echo "$((i+1)). ${values_files[i]}"
+            echo "$((i+1)). ${values_files[i]}" >&2
         done
         
         while true; do
-            echo -n "Select a file (1-${#values_files[@]}): "
+            echo -n "Select a file (1-${#values_files[@]}): " >&2
             read -r choice
             if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#values_files[@]} ]; then
                 echo "repos/$repo_dir/${values_files[$((choice-1))]}"
                 return 0
             else
-                echo "Invalid selection. Please enter a number between 1 and ${#values_files[@]}."
+                echo "Invalid selection. Please enter a number between 1 and ${#values_files[@]}." >&2
             fi
         done
     fi
