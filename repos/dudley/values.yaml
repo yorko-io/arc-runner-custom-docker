@@ -1,0 +1,57 @@
+# --------------------------------------------------------------------
+# GitHub configuration
+# --------------------------------------------------------------------
+githubConfigUrl: "https://github.com/joshyorko/dudleys-second-bedroom"  # Replace with your GitHub URL
+
+githubConfigSecret: pre-defined-secret
+
+# --------------------------------------------------------------------
+# Runner scale set configuration
+# --------------------------------------------------------------------
+runnerScaleSetName: "arc-runner-k8s"  # Name of the runner scale set
+
+# --------------------------------------------------------------------
+# Enable Docker-in-Docker mode
+# --------------------------------------------------------------------
+containerMode:
+  type: "dind"  # This enables the Docker-in-Docker sidecar container
+
+# --------------------------------------------------------------------
+# Runner Pod template configuration
+# --------------------------------------------------------------------
+template:
+  spec:
+    dnsPolicy: None
+    dnsConfig:
+      nameservers: ["8.8.8.8", "1.1.1.1"]
+    #imagePullSecrets:        # omit this block if your image is public
+    #  - name: ghcr-login
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:2.328.0  # Replace with your image
+        imagePullPolicy: Always
+        command: ["/home/runner/run.sh"]
+        resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
+        volumeMounts:
+          - name: work
+            mountPath: /home/runner/_work
+    volumes:
+      - name: work
+        ephemeral:
+          volumeClaimTemplate:
+            spec:
+              accessModes: ["ReadWriteOnce"]
+              storageClassName: "local-path"  # adjust to your cluster's storage class
+              resources:
+                requests:
+                  storage: 50Gi
+
+maxRunners: 3
+
+minRunners: 0
